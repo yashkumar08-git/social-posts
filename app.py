@@ -1,3 +1,6 @@
+import os
+
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, session, url_for
 from flask_login import LoginManager, current_user, login_required, login_user, logout_user
 from model.users import Users
@@ -6,11 +9,20 @@ from model.users import db
 from form import RegisterForm
 
 
+load_dotenv()
+
+
+def get_database_uri():
+    database_url = os.getenv("DATABASE_URL") or os.getenv("SQLALCHEMY_DATABASE_URI")
+    if database_url:
+        return database_url.replace("postgres://", "postgresql://", 1)
+    return "sqlite:///social_posts.db"
+
+
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "your_secret_key_here"
-app.config["SQLALCHEMY_DATABASE_URI"] = (
-    "postgresql://postgres:Nopassword%4003@localhost/test"
-)
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "your_secret_key_here")
+app.config["SQLALCHEMY_DATABASE_URI"] = get_database_uri()
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 loginmanager = LoginManager()
 loginmanager.init_app(app)
@@ -24,8 +36,10 @@ def load_user(user_id):
 
 db.init_app(app)
 
-with app.app_context():
-    db.create_all()
+
+def initialize_database():
+    with app.app_context():
+        db.create_all()
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -108,4 +122,5 @@ def fetch_all():
 
 
 if __name__ == "__main__":
+    initialize_database()
     app.run(debug=True)
