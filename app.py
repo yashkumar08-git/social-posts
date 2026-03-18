@@ -1,28 +1,23 @@
-import os
-
-from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, session, url_for
 from flask_login import LoginManager, current_user, login_required, login_user, logout_user
 from model.users import Users
 from model.users import db
-
+import os
 from form import RegisterForm
-
-
-load_dotenv()
-
-
-def get_database_uri():
-    database_url = os.getenv("DATABASE_URL") or os.getenv("SQLALCHEMY_DATABASE_URI")
-    if database_url:
-        return database_url.replace("postgres://", "postgresql://", 1)
-    return "sqlite:///social_posts.db"
 
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "your_secret_key_here")
-app.config["SQLALCHEMY_DATABASE_URI"] = get_database_uri()
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# Database config: prefer Render's DATABASE_URL, fallback to sqlite for local development.
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    # SQLAlchemy 2.x requires postgresql:// not postgres://
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///local.db"
 
 loginmanager = LoginManager()
 loginmanager.init_app(app)
@@ -36,10 +31,8 @@ def load_user(user_id):
 
 db.init_app(app)
 
-
-def initialize_database():
-    with app.app_context():
-        db.create_all()
+with app.app_context():
+    db.create_all()
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -72,7 +65,7 @@ def login():
     return render_template("login.html", error="Invalid credentials")
 
 
-@app.route("/dashboard<int:user_id>")
+@app.route("/dashboard/<int:user_id>")
 @login_required
 def dashboard(user_id):
     return render_template("dashboard.html", user_id=user_id, current_user=current_user.username)
@@ -122,5 +115,4 @@ def fetch_all():
 
 
 if __name__ == "__main__":
-    initialize_database()
     app.run(debug=True)
