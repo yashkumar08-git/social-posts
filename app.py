@@ -10,9 +10,14 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = "your_secret_key_here"
 db_url = os.environ.get("DATABASE_URL")
 
-if db_url and db_url.startswith("postgres://"):
+if not db_url:
+    raise ValueError("DATABASE_URL is not set!")
+
+if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
+
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+
 loginmanager = LoginManager()
 loginmanager.init_app(app)
 loginmanager.login_view = "login"
